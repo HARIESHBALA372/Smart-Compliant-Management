@@ -1,0 +1,1 @@
+"""FastAPI routes: health, analysis, model-info plus frontend-compat endpoints."""

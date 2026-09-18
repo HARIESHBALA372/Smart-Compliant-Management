@@ -1,0 +1,376 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -----------------------------------------------------------
+// Enums
+// -----------------------------------------------------------
+
+enum Role {
+  USER
+  STAFF
+  ADMIN
+}
+
+enum ComplaintStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  ASSIGNED
+  IN_PROGRESS
+  WAITING_FOR_USER
+  RESOLVED
+  CLOSED
+  REJECTED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum Category {
+  WATER
+  ELECTRICITY
+  ROADS
+  SANITATION
+  TRANSPORT
+  SAFETY
+  OTHER
+}
+
+enum NotificationType {
+  COMPLAINT_CREATED
+  COMPLAINT_ASSIGNED
+  STATUS_UPDATED
+  COMMENT_ADDED
+  COMPLAINT_RESOLVED
+  COMPLAINT_CLOSED
+  COMPLAINT_ESCALATED
+  COMPLAINT_REJECTED
+  COMPLAINT_REOPENED
+  COMPLAINT_PRIORITY_CHANGED
+  FEEDBACK_REQUEST
+  ADMIN_ANNOUNCEMENT
+  SYSTEM_NOTIFICATION
+  SLA_WARNING
+  SLA_BREACHED
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+}
+
+enum NotificationPriority {
+  NORMAL
+  IMPORTANT
+  CRITICAL
+}
+
+// Escalation levels for the ticket-escalation matrix.
+// LEVEL_1 -> assigned agent / department staff
+// LEVEL_2 -> department manager
+// LEVEL_3 -> administrator
+enum EscalationLevel {
+  LEVEL_1
+  LEVEL_2
+  LEVEL_3
+}
+
+// -----------------------------------------------------------
+// Models
+// -----------------------------------------------------------
+
+// Configurable SLA levels per priority. Backs the GET/PUT /admin/sla
+// endpoints so SLA limits persist instead of living only in memory.
+// When no rule exists for a priority, the code falls back to the
+// SLA_HOURS_BY_PRIORITY defaults in utils/http.ts.
+model SlaRule {
+  id              String   @id @default(cuid())
+  priority        Priority @unique
+  responseHours   Int      @default(4)
+  resolutionHours Int      @default(72)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([priority])
+}
+
+// Lookup table of supported complaint categories. The canonical Category
+// enum is stored on each complaint for efficiency; this reference table
+// drives dropdowns, default priorities and department routing.
+model ComplaintCategory {
+  id              String      @id @default(cuid())
+  name            String      @unique
+  description     String?
+  departmentId    String?
+  department      Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  defaultPriority Priority    @default(MEDIUM)
+  isActive        Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+
+  @@index([departmentId])
+}
+
+model Department {
+  id                  String                @id @default(cuid())
+  name                String                @unique
+  description         String?
+  contactEmail        String?
+  contactPhone        String?
+  isActive            Boolean               @default(true)
+  users               User[]
+  complaints          Complaint[]
+  complaintCategories ComplaintCategory[]
+  assignments         ComplaintAssignment[]
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+}
+
+model User {
+  id                  String                @id @default(cuid())
+  name                String
+  email               String                @unique
+  phone               String?
+  password            String
+  role                Role                  @default(USER)
+  departmentId        String?
+  department          Department?           @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  isActive            Boolean               @default(true)
+  complaints          Complaint[]           @relation("ComplaintOwner")
+  assignedComplaints  Complaint[]           @relation("AssignedTo")
+  updates             ComplaintUpdate[]
+  notifications       Notification[]
+  feedback            Feedback[]
+  attachments         ComplaintAttachment[]
+  assignmentsAssigned ComplaintAssignment[] @relation("AssignmentAssignee")
+  assignmentsBy       ComplaintAssignment[] @relation("AssignmentAssigner")
+  auditLogs           AuditLog[]
+  escalationsRaised   ComplaintEscalation[] @relation("EscalationActor")
+  escalationsAssigned ComplaintEscalation[] @relation("EscalationAssignee")
+  escalationsResolved ComplaintEscalation[] @relation("EscalationResolver")
+  notificationPreferences NotificationPreferences?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+
+  @@index([role])
+  @@index([departmentId])
+  @@index([email])
+  @@index([isActive])
+}
+
+model Complaint {
+  id                     String                @id @default(cuid())
+  complaintNumber        String                @unique
+  title                  String
+  description            String
+  category               Category
+  subcategory            String?
+  priority               Priority              @default(MEDIUM)
+  severityScore          Float?
+  status                 ComplaintStatus       @default(SUBMITTED)
+  location               String?
+  latitude               Float?
+  longitude              Float?
+  aiCategory             Category?
+  aiPriority             Priority?
+  aiConfidence           Float?
+  expectedResolutionTime DateTime?
+  imageUrl               String?
+  documentUrl            String?
+  userId                 String
+  user                   User                  @relation("ComplaintOwner", fields: [userId], references: [id], onDelete: Cascade)
+  assignedToId           String?
+  assignedTo             User?                 @relation("AssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  departmentId           String?
+  department             Department?           @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  updates                ComplaintUpdate[]
+  attachments            ComplaintAttachment[]
+  assignments            ComplaintAssignment[]
+  notifications          Notification[]
+  feedback               Feedback[]
+  escalations            ComplaintEscalation[]
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  assignedAt             DateTime?
+  resolvedAt             DateTime?
+  closedAt               DateTime?
+  reopenedAt             DateTime?
+
+  @@index([status])
+  @@index([category])
+  @@index([priority])
+  @@index([userId])
+  @@index([assignedToId])
+  @@index([departmentId])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([complaintNumber])
+}
+
+// Escalation history for a complaint. Row is created on each manual or
+// automatic (SLA-driven) escalation. `resolvedAt` is stamped when the
+// escalator marks the escalation resolved (the original complaint may
+// still be open) or when the complaint reaches a terminal status.
+model ComplaintEscalation {
+  id                 String           @id @default(cuid())
+  complaintId        String
+  complaint          Complaint        @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  escalatedBy        String?
+  escalator          User?            @relation("EscalationActor", fields: [escalatedBy], references: [id], onDelete: SetNull)
+  escalatedTo        String?
+  escalatee          User?            @relation("EscalationAssignee", fields: [escalatedTo], references: [id], onDelete: SetNull)
+  fromLevel          EscalationLevel?
+  toLevel            EscalationLevel
+  reason             String?
+  isResolved         Boolean          @default(false)
+  resolvedAt         DateTime?
+  resolvedBy         String?
+  resolver           User?            @relation("EscalationResolver", fields: [resolvedBy], references: [id], onDelete: SetNull)
+  createdAt          DateTime         @default(now())
+
+  @@index([complaintId, createdAt])
+  @@index([escalatedTo])
+  @@index([isResolved])
+}
+
+// Metadata for uploaded files. File bytes live in object/file storage
+// (or the local ./uploads directory) — PostgreSQL stores references only.
+model ComplaintAttachment {
+  id          String    @id @default(cuid())
+  complaintId String
+  complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  fileName    String
+  fileUrl     String
+  fileType    String?
+  fileSize    Int       @default(0)
+  uploadedBy  String?
+  uploader    User?     @relation(fields: [uploadedBy], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+
+  @@index([complaintId])
+  @@index([uploadedBy])
+}
+
+// Every important status change / public comment is recorded here. This
+// table doubles as the complaint status history and the user-visible
+// comment timeline (internal vs public filtering is applied in the API).
+model ComplaintUpdate {
+  id          String           @id @default(cuid())
+  complaintId String
+  complaint   Complaint        @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  oldStatus   ComplaintStatus?
+  newStatus   ComplaintStatus
+  comment     String?
+  isInternal  Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+
+  @@index([complaintId])
+  @@index([createdAt])
+}
+
+// Assignment / reassignment history for a complaint.
+model ComplaintAssignment {
+  id           String      @id @default(cuid())
+  complaintId  String
+  complaint    Complaint   @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  assignedTo   String?
+  assignee     User?       @relation("AssignmentAssignee", fields: [assignedTo], references: [id], onDelete: SetNull)
+  assignedBy   String?
+  assigner     User?       @relation("AssignmentAssigner", fields: [assignedBy], references: [id], onDelete: SetNull)
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  reason       String?
+  assignedAt   DateTime    @default(now())
+  unassignedAt DateTime?
+
+  @@index([complaintId, assignedAt])
+  @@index([assignedTo])
+  @@index([departmentId])
+}
+
+model Notification {
+  id          String             @id @default(cuid())
+  userId      String
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  complaintId String?
+  complaint   Complaint?         @relation(fields: [complaintId], references: [id], onDelete: SetNull)
+  type        NotificationType   @default(COMPLAINT_CREATED)
+  title       String
+  message     String
+  channel     NotificationChannel @default(IN_APP)
+  priority    NotificationPriority @default(NORMAL)
+  metadata    Json?
+  isRead      Boolean            @default(false)
+  completed   Boolean            @default(false)
+  createdAt   DateTime           @default(now())
+  readAt      DateTime?
+  completedAt DateTime?
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+  @@index([type])
+  @@index([userId, isRead])
+}
+
+model Feedback {
+  id          String    @id @default(cuid())
+  complaintId String    @unique
+  complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating      Int
+  comment     String?
+  createdAt   DateTime  @default(now())
+
+  @@index([complaintId])
+  @@index([userId])
+}
+
+model NotificationPreferences {
+  id                     String   @id @default(cuid())
+  userId                 String   @unique
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  complaintStatusUpdates Boolean  @default(true)
+  complaintAssignment    Boolean  @default(true)
+  complaintResolution    Boolean  @default(true)
+  commentNotifications   Boolean  @default(true)
+  slaAlerts              Boolean  @default(true)
+  emailNotifications     Boolean  @default(true)
+  inAppNotifications     Boolean  @default(true)
+  announcements          Boolean  @default(true)
+  feedbackRequests       Boolean  @default(true)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String
+  entityType String
+  entityId   String?
+  oldValue   Json?
+  newValue   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([entityType, entityId])
+}

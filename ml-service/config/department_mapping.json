@@ -1,0 +1,51 @@
+{
+  "_comment": "Maps ML complaint categories to backend-aligned department names. Department labels match the Smart Complaint backend seed (backend/prisma/seed.ts). Customize freely - the recommendation engine loads this file at startup.",
+  "Water Supply": {
+    "department": "Water Supply",
+    "reason": "Complaint relates to water availability or pipeline service disruption."
+  },
+  "Electricity": {
+    "department": "Electricity",
+    "reason": "Complaint relates to power/electrical service."
+  },
+  "Roads": {
+    "department": "Roads",
+    "reason": "Complaint relates to road surface or road infrastructure."
+  },
+  "Garbage/Waste": {
+    "department": "Sanitation",
+    "reason": "Complaint relates to garbage collection or solid waste."
+  },
+  "Drainage": {
+    "department": "Sanitation",
+    "reason": "Complaint relates to drainage or sewage."
+  },
+  "Street Lights": {
+    "department": "Electricity",
+    "reason": "Complaint relates to street lighting infrastructure."
+  },
+  "Public Transport": {
+    "department": "Transportation",
+    "reason": "Complaint relates to public transport services."
+  },
+  "Traffic": {
+    "department": "Transportation",
+    "reason": "Complaint relates to traffic or vehicle movement."
+  },
+  "Public Safety": {
+    "department": "Public Safety",
+    "reason": "Complaint involves a public safety hazard."
+  },
+  "Sanitation": {
+    "department": "Sanitation",
+    "reason": "Complaint relates to cleanliness or hygiene."
+  },
+  "Government Services": {
+    "department": "General",
+    "reason": "Complaint relates to civic/government services."
+  },
+  "Other": {
+    "department": "General",
+    "reason": "Complaint does not clearly match a specific department."
+  }
+}

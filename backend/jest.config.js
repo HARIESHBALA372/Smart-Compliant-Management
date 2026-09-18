@@ -1,0 +1,11 @@
+/** @type {import('ts-jest').JestConfigWithTsJest} */
+module.exports = {
+  preset: 'ts-jest',
+  testEnvironment: 'node',
+  rootDir: '.',
+  testMatch: ['<rootDir>/tests/**/*.test.ts'],
+  setupFiles: ['<rootDir>/tests/setup-env.ts'],
+  globalSetup: '<rootDir>/tests/global-setup.ts',
+  clearMocks: true,
+  collectCoverageFrom: ['src/**/*.ts', '!src/server.ts', '!src/types/**', '!src/docs/**'],
+};

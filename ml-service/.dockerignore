@@ -1,0 +1,17 @@
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+reports/
+data/processed/
+.env
+.git/
+.gitignore
+README.md
+requirements-dev.txt
+requirements-optional.txt
+tests/
+training/*.py

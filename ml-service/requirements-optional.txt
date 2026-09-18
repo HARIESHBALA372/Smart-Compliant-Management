@@ -1,0 +1,5 @@
+# Optional: sentence-transformer embeddings for more accurate duplicate detection.
+# Adds ~1GB+ of dependencies (torch). The service falls back to a deterministic
+# offline hashing embedder when this package is not installed.
+#   pip install -r requirements-optional.txt
+sentence-transformers>=2.7
