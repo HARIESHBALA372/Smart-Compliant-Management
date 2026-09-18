@@ -37,9 +37,9 @@ export function TableRow({ children, className }: { children: ReactNode; classNa
   return <tr className={cn('hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors', className)}>{children}</tr>
 }
 
-export function TableCell({ children, className, colSpan }: { children?: ReactNode; className?: string; colSpan?: number }) {
+export function TableCell({ children, className, colSpan, title }: { children?: ReactNode; className?: string; colSpan?: number; title?: string }) {
   return (
-    <td colSpan={colSpan} className={cn('px-4 py-3 text-gray-900 dark:text-gray-100 whitespace-nowrap', className)}>
+    <td colSpan={colSpan} title={title} className={cn('px-4 py-3 text-gray-900 dark:text-gray-100 whitespace-nowrap', className)}>
       {children}
     </td>
   )

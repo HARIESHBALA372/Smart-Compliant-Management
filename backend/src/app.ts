@@ -18,9 +18,13 @@ export async function createApp(): Promise<express.Express> {
 
   app.use(helmet())
 
+  // Parse CLIENT_URL as comma-separated list to support multiple origins
+  // (e.g. "https://your-app.vercel.app,http://localhost:3000")
+  const allowedOrigins = env.CLIENT_URL.split(',').map((o) => o.trim()).filter(Boolean)
+
   app.use(
     cors({
-      origin: env.CLIENT_URL,
+      origin: allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins,
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     }),

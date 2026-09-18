@@ -11,7 +11,7 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().default('7d'),
   JWT_ISSUER: z.string().default('smart-complaint-api'),
   JWT_AUDIENCE: z.string().default('smart-complaint-app'),
-  CLIENT_URL: z.string().url().default('http://localhost:3000'),
+  CLIENT_URL: z.string().default('http://localhost:3000'),
   UPLOAD_DIR: z.string().default('./uploads'),
   REDIS_CONNECTION_STRING: z.string().default('redis://localhost:6379'),
   REDIS_ENABLED: z

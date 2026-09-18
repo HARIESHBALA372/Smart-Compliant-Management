@@ -8,3 +8,4 @@ dist
 realnode.txt
 .DS_Store
 coverage
+.vercel
