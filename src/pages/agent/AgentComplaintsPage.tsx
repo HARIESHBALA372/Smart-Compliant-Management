@@ -34,7 +34,7 @@ export function AgentComplaintsPage() {
   const debouncedSearch = useDebounce(search)
 
   useEffect(() => {
-    dispatch(fetchComplaints({ assignedAgentId: user?.id || '2', page: 1, limit: 10, search: debouncedSearch || undefined }))
+    dispatch(fetchComplaints({ assignedAgentId: user?.id, page: 1, limit: 10, search: debouncedSearch || undefined }))
   }, [dispatch, debouncedSearch, user?.id])
 
   const filtered = useMemo(() => {
@@ -180,7 +180,7 @@ export function AgentComplaintsPage() {
         <Pagination
           currentPage={page}
           totalPages={totalPages}
-          onPageChange={(p) => dispatch(fetchComplaints({ assignedAgentId: '2', page: p }))}
+          onPageChange={(p) => dispatch(fetchComplaints({ assignedAgentId: user?.id, page: p, limit: 10, search: debouncedSearch || undefined }))}
         />
       </div>
     </div>

@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { analyticsApi } from '@/services/analyticsApi'
+import { wsService } from '@/services/websocketService'
 import type { AnalyticsDashboardData, AnalyticsFilters } from '@/types/analytics'
 
 const DEBOUNCE_MS = 400
@@ -101,14 +102,8 @@ export function useAnalytics(filters: AnalyticsFilters, realtime = false): UseAn
 
   useEffect(() => {
     if (!realtime) return
-    let off: (() => void) | undefined
-    let disposed = false
-    void import('@/services/websocketService').then(({ wsService }) => {
-      if (disposed) return
-      off = wsService.on('analytics', () => run())
-    })
+    const off = wsService.on('analytics', () => run())
     return () => {
-      disposed = true
       off?.()
     }
   }, [realtime, run])

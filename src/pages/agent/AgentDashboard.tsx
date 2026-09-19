@@ -38,7 +38,11 @@ export function AgentDashboard() {
   const { complaints, isLoading } = useAppSelector((state) => state.complaints)
 
   useEffect(() => {
-    dispatch(fetchComplaints({ assignedAgentId: user?.id || '2', limit: 100 }))
+    if (user?.id) {
+      dispatch(fetchComplaints({ assignedAgentId: user.id, limit: 100 }))
+    } else {
+      dispatch(fetchComplaints({ limit: 100 }))
+    }
   }, [dispatch, user?.id])
 
   const stats = {

@@ -20,12 +20,17 @@ import { formatDate } from '@/utils'
 
 export function SLAAalertsPage() {
   const dispatch = useAppDispatch()
+  const user = useAppSelector((state) => state.auth.user)
   const { complaints, isLoading } = useAppSelector((state) => state.complaints)
   const [search, setSearch] = useState('')
 
   useEffect(() => {
-    dispatch(fetchComplaints({ assignedAgentId: '2', limit: 100 }))
-  }, [dispatch])
+    if (user?.id) {
+      dispatch(fetchComplaints({ assignedAgentId: user.id, limit: 100 }))
+    } else {
+      dispatch(fetchComplaints({ limit: 100 }))
+    }
+  }, [dispatch, user?.id])
 
   const alerts = useMemo(() => {
     const now = new Date()

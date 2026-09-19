@@ -26,9 +26,16 @@ const api: AxiosInstance = axios.create({
 
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const tokens = JSON.parse(localStorage.getItem('tokens') || 'null')
-    if (tokens?.accessToken && config.headers) {
-      config.headers.Authorization = `Bearer ${tokens.accessToken}`
+    try {
+      const raw = localStorage.getItem('tokens')
+      if (raw && raw !== 'undefined' && raw !== 'null') {
+        const tokens = JSON.parse(raw)
+        if (tokens?.accessToken && config.headers) {
+          config.headers.Authorization = `Bearer ${tokens.accessToken}`
+        }
+      }
+    } catch {
+      // ignore
     }
     return config
   },

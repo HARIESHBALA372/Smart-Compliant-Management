@@ -16,8 +16,16 @@ type WSMessage = {
 
 function buildWsUrl(): string | null {
   const base = import.meta.env.VITE_WS_URL || 'ws://localhost:4000/ws'
-  const tokens = JSON.parse(localStorage.getItem('tokens') || 'null')
-  const token = tokens?.accessToken
+  let token: string | undefined = undefined
+  try {
+    const raw = localStorage.getItem('tokens')
+    if (raw && raw !== 'undefined' && raw !== 'null') {
+      const tokens = JSON.parse(raw)
+      token = tokens?.accessToken
+    }
+  } catch {
+    // ignore
+  }
   if (!token) return null
   const url = new URL(base)
   url.searchParams.set('token', token)
@@ -75,7 +83,7 @@ class WebSocketService {
       callbacks.forEach((cb) => cb(message.payload))
     }
 
-switch (message.type) {
+    switch (message.type) {
       case 'notification':
         store.dispatch(addNotification(message.payload))
         break

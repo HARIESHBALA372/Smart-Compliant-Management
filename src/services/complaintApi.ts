@@ -173,4 +173,12 @@ export const complaintApi = {
     }
     return unwrap<AgentRecommendation[]>(await api.get(`/complaints/${complaintId}/recommend-agents`))
   },
+
+  async assign(complaintId: string, payload: { assignedTo: string; departmentId?: string; reason?: string }): Promise<Complaint> {
+    if (isMockMode()) {
+      await new Promise((r) => setTimeout(r, 500))
+      return mockGetComplaintById(complaintId)
+    }
+    return normalizeComplaint(unwrap<Record<string, unknown>>(await api.post(`/complaints/${complaintId}/assign`, payload)))
+  },
 }

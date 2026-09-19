@@ -9,3 +9,15 @@ realnode.txt
 .DS_Store
 coverage
 .vercel
+
+# Python
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+*.db
+*.sqlite3
+.pytest_cache/
+

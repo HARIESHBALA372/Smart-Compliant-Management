@@ -138,6 +138,21 @@ export const changeStatusAction = createAsyncThunk(
   },
 )
 
+export const assignComplaintAction = createAsyncThunk(
+  'complaints/assign',
+  async (
+    { complaintId, assignedTo, departmentId, reason }: { complaintId: string; assignedTo: string; departmentId?: string; reason?: string },
+    { rejectWithValue },
+  ) => {
+    try {
+      return await complaintApi.assign(complaintId, { assignedTo, departmentId, reason })
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } }
+      return rejectWithValue(err.response?.data?.message || 'Failed to assign complaint')
+    }
+  },
+)
+
 const complaintSlice = createSlice({
   name: 'complaints',
   initialState,
@@ -224,6 +239,14 @@ const complaintSlice = createSlice({
         }
       })
       .addCase(changeStatusAction.fulfilled, (state, action) => {
+        const updated = action.payload
+        const index = state.complaints.findIndex((c) => c.id === updated.id)
+        if (index !== -1) state.complaints[index] = updated
+        if (state.currentComplaint?.id === updated.id) {
+          state.currentComplaint = updated
+        }
+      })
+      .addCase(assignComplaintAction.fulfilled, (state, action) => {
         const updated = action.payload
         const index = state.complaints.findIndex((c) => c.id === updated.id)
         if (index !== -1) state.complaints[index] = updated

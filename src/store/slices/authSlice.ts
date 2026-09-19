@@ -25,7 +25,8 @@ function normalizeUser(raw: Record<string, unknown>): User {
   const backendRole = String(raw.role ?? '').toUpperCase()
   let role = Role.CUSTOMER
   if (backendRole === 'ADMIN') role = Role.ADMIN
-  else if (backendRole === 'STAFF' || backendRole === 'MANAGER' || backendRole === 'AGENT') role = Role.MANAGER
+  else if (backendRole === 'AGENT') role = Role.AGENT
+  else if (backendRole === 'STAFF' || backendRole === 'MANAGER') role = Role.MANAGER
   return { ...(raw as unknown as User), role }
 }
 
@@ -60,10 +61,28 @@ function extractErrorMessage(error: unknown, fallback: string): string {
   return err.response?.data?.message || err.message || fallback
 }
 
+function safeParse<T>(key: string): T | null {
+  try {
+    const raw = localStorage.getItem(key)
+    if (!raw || raw === 'undefined' || raw === 'null') return null
+    return JSON.parse(raw) as T
+  } catch {
+    try {
+      localStorage.removeItem(key)
+    } catch {
+      // ignore
+    }
+    return null
+  }
+}
+
+const initialUserRaw = safeParse<Record<string, unknown>>('user')
+const initialTokens = safeParse<AuthTokens>('tokens')
+
 const initialState: AuthState = {
-  user: JSON.parse(localStorage.getItem('user') || 'null'),
-  tokens: JSON.parse(localStorage.getItem('tokens') || 'null'),
-  isAuthenticated: !!localStorage.getItem('tokens'),
+  user: initialUserRaw ? normalizeUser(initialUserRaw) : null,
+  tokens: initialTokens,
+  isAuthenticated: !!(initialTokens && initialTokens.accessToken),
   isLoading: false,
   error: null,
 }
