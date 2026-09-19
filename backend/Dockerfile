@@ -1,34 +1,28 @@
-# ---- Build stage ----
-FROM node:20-alpine AS build
+FROM python:3.11-slim-bookworm
+
 WORKDIR /app
 
-COPY package*.json ./
-COPY prisma ./prisma
-RUN npm ci
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PORT=4000 \
+    HOST=0.0.0.0 \
+    ENVIRONMENT=production \
+    DATABASE_URL=sqlite:////app/data/complaints.db \
+    UPLOAD_DIR=/app/uploads \
+    ML_SERVICE_URL=http://ml-service:8000
 
-COPY tsconfig.json tsconfig.build.json ./
-COPY src ./src
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
 
-RUN npx prisma generate && npm run build
+# Create persistent storage directories for SQLite and attachments
+RUN mkdir -p /app/data /app/uploads
 
-# ---- Runtime stage ----
-FROM node:20-alpine AS runtime
-WORKDIR /app
+COPY app ./app
+COPY run.py pytest.ini ./
 
-ENV NODE_ENV=production
+EXPOSE 4000
 
-COPY package*.json ./
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:4000/api/health', timeout=5)" || exit 1
 
-# Copy the full node_modules from the build stage so the generated Prisma
-# client AND the Prisma CLI (used by compose's `prisma db push` step) are
-# present, per Prisma's official multi-stage guidance.
-COPY --from=build /app/node_modules ./node_modules
-
-COPY --from=build /app/dist ./dist
-COPY --from=build /app/prisma ./prisma
-
-RUN mkdir -p /app/uploads
-
-EXPOSE 5000
-
-CMD ["node", "dist/server.js"]
+CMD ["sh", "-c", "uvicorn app.main:app --host ${HOST} --port ${PORT} --workers 2"]

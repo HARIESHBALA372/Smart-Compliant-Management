@@ -1,0 +1,15 @@
+node_modules
+dist
+.env
+.env.local
+.env*.local
+*.log
+*.out
+coverage
+.git
+.gitignore
+.vscode
+.idea
+backend
+ml-service
+uploads

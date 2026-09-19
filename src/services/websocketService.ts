@@ -15,7 +15,10 @@ type WSMessage = {
 }
 
 function buildWsUrl(): string | null {
-  const base = import.meta.env.VITE_WS_URL || 'ws://localhost:4000/ws'
+  const envWs = import.meta.env.VITE_WS_URL
+  const envApi = import.meta.env.VITE_API_URL
+  const base = envWs || (envApi ? envApi.replace(/\/api\/?$/, '/ws') : 'ws://localhost:4000/ws')
+
   let token: string | undefined = undefined
   try {
     const raw = localStorage.getItem('tokens')
@@ -27,9 +30,23 @@ function buildWsUrl(): string | null {
     // ignore
   }
   if (!token) return null
-  const url = new URL(base)
-  url.searchParams.set('token', token)
-  return url.toString()
+
+  try {
+    let full = base
+    if (full.startsWith('/')) {
+      const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      full = `${proto}//${window.location.host}${full}`
+    } else if (full.startsWith('https://')) {
+      full = full.replace(/^https:\/\//, 'wss://')
+    } else if (full.startsWith('http://')) {
+      full = full.replace(/^http:\/\//, 'ws://')
+    }
+    const url = new URL(full, window.location.origin)
+    url.searchParams.set('token', token)
+    return url.toString()
+  } catch {
+    return null
+  }
 }
 
 class WebSocketService {

@@ -217,4 +217,117 @@ The service automatically reconnects with exponential backoff (up to 5 attempts)
 
 ---
 
-Built as a complete, production-ready frontend for the Smart Complaint Management App.
+## Production Deployment Guide
+
+The application is fully containerized and production-ready. You can deploy it using Docker Compose (recommended for fullstack VPS/Cloud) or independently across cloud providers.
+
+### Option 1: One-Command Docker Compose (Fullstack)
+
+To run the entire system (Frontend, FastAPI Backend, ML Microservice, and persistent volumes):
+
+```bash
+# 1. Clone repository
+git clone https://github.com/HARIESHBALA372/Smart-Compliant-Management.git
+cd "smart complaint management app"
+
+# 2. Configure production secrets
+cp .env.production.example .env
+cp backend/.env.production.example backend/.env
+
+# 3. Build and launch all services in detached mode
+docker compose up -d --build
+```
+
+#### Services Started:
+- **Frontend (Nginx)**: `http://localhost:3000` (Serves optimized SPA, proxies `/api` and `/ws` to backend)
+- **Backend (FastAPI)**: `http://localhost:4000` (API docs at `/api/docs`, health at `/api/health`)
+- **ML Microservice**: `http://localhost:8000` (Health at `/health`)
+
+#### Persistent Docker Volumes:
+- `backend_data`: Stores SQLite database (`complaints.db`) across container updates.
+- `backend_uploads`: Stores user complaint file attachments.
+
+---
+
+### Option 2: Cloud Deployment (Render / Railway / Vercel)
+
+#### Frontend on Vercel:
+1. Connect this repository to **Vercel**.
+2. Set Build Command to `npm run build` and Output Directory to `dist`.
+3. Configure Environment Variables:
+   ```
+   VITE_API_URL=https://api.yourdomain.com/api
+   VITE_ML_API_URL=https://ml.yourdomain.com
+   VITE_WS_URL=wss://api.yourdomain.com/ws
+   ```
+4. `vercel.json` already handles SPA route rewrites.
+
+#### Backend on Render:
+1. Deploy as a Web Service using `backend/render.yaml` or connect repository with `rootDir: backend`.
+2. Build Command: `pip install -r requirements.txt`
+3. Start Command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+4. Set Environment Variables:
+   - `JWT_SECRET`: Random 64-character secret
+   - `ENVIRONMENT`: `production`
+   - `CLIENT_URL`: `https://your-frontend.vercel.app`
+   - `DATABASE_URL`: `sqlite:///./complaints.db` or your PostgreSQL connection string
+   - `ML_SERVICE_URL`: `https://your-ml-service.onrender.com`
+
+#### ML Microservice on Render / Railway:
+1. Connect repository with root directory `ml-service`.
+2. Deploy using `ml-service/Dockerfile`.
+3. Health check path: `/health`.
+
+---
+
+### Option 3: Traditional VPS Deployment (Ubuntu / Debian)
+
+#### 1. Backend Service (systemd)
+```ini
+[Unit]
+Description=Smart Complaint Management Backend
+After=network.target
+
+[Service]
+User=www-data
+WorkingDirectory=/var/www/scm/backend
+ExecStart=/var/www/scm/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 4000 --workers 4
+Restart=always
+EnvironmentFile=/var/www/scm/backend/.env
+
+[Install]
+WantedBy=multi-user.target
+```
+
+#### 2. ML Service (systemd)
+```ini
+[Unit]
+Description=Smart Complaint Management ML Service
+After=network.target
+
+[Service]
+User=www-data
+WorkingDirectory=/var/www/scm/ml-service
+ExecStart=/var/www/scm/ml-service/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 2
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+#### 3. Nginx Reverse Proxy & Static Hosting
+Use the provided [nginx.conf](./nginx.conf) to serve built frontend assets and reverse proxy `/api` and `/ws` to the local FastAPI backend.
+
+---
+
+## Production Security Checklist
+
+- [ ] **JWT Secret**: Generate a cryptographically secure key with `python -c "import secrets; print(secrets.token_hex(32))"`.
+- [ ] **CORS**: Update `CLIENT_URL` in `backend/.env` to only include your production domain(s).
+- [ ] **SSL/TLS**: Enforce HTTPS via Let's Encrypt (`certbot --nginx`) or Cloudflare.
+- [ ] **Backups**: Schedule regular backups of `complaints.db` or your PostgreSQL database.
+- [ ] **Upload Limits**: Max upload file size configured in Nginx (`client_max_body_size 25M`).
+
+---
+
+Built as a complete, enterprise-ready application for the Smart Complaint Management System.
