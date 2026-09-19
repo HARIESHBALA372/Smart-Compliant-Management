@@ -48,6 +48,32 @@ app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads"
 # Include all /api routes
 app.include_router(api_router)
 
+# Also mount sub-routers directly without /api prefix as aliases
+# so that requests to /auth/*, /complaints/*, etc. succeed whether or not the client includes /api
+from app.api import (
+    health as health_api,
+    auth as auth_api,
+    complaints as complaints_api,
+    notifications as notif_api,
+    feedback as feedback_api,
+    departments as dept_api,
+    dashboard as dash_api,
+    agent as agent_api,
+    analytics as analytics_api,
+    admin as admin_api,
+)
+app.include_router(health_api.router)
+app.include_router(auth_api.router)
+app.include_router(complaints_api.router)
+app.include_router(notif_api.router)
+app.include_router(feedback_api.router)
+app.include_router(dept_api.router)
+app.include_router(dash_api.router)
+app.include_router(agent_api.router)
+app.include_router(analytics_api.router)
+app.include_router(admin_api.router)
+
+
 # Root endpoint
 @app.get("/")
 def root():
